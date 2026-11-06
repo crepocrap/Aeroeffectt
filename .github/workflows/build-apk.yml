@@ -1,0 +1,70 @@
+
+name: PixelCut Aero Android APK
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build PixelCut Aero APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Extract uploaded ZIP
+        shell: bash
+        run: |
+          ARCHIVE="PixelCutAero-Android-GitHub.zip"
+
+          if [ ! -f "$ARCHIVE" ]; then
+            echo "ZIP file not found!"
+            exit 1
+          fi
+
+          mkdir -p .build-source
+
+          unzip -oq "$ARCHIVE" -d .build-source
+
+          test -f .build-source/VideoEditorApp/app/build.gradle
+
+          echo "Project extracted successfully!"
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK
+        run: |
+          sdkmanager "platforms;android-35"
+          sdkmanager "build-tools;35.0.0"
+          sdkmanager "platform-tools"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK
+        working-directory: .build-source/VideoEditorApp
+        run: |
+          gradle --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PixelCut-Aero-Android-APK
+          path: .build-source/VideoEditorApp/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
